@@ -28,10 +28,13 @@ export const Chatbot = () => {
         setIsLoading(true);
 
         try {
-            // In a real app, this URL would be from env
+            const token = localStorage.getItem('accessToken');
             const response = await fetch('http://localhost:3001/chatbot/message', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ message: userMsg }),
             });
 
