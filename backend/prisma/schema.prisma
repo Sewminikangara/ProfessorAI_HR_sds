@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  domain      String?  @unique
+  logoUrl     String?
+  onboarded   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  employees   Employee[]
+  departments Department[]
+  positions   Position[]
+  jobs        RecruitmentJob[]
+  leaveTypes  LeaveType[]
+  attendance  AttendanceLog[]
+  timesheets  Timesheet[]
+  performance PerformanceReview[]
+  goals       Goal[]
+  courses     Course[]
+  documents   HRDocument[]
+  chatLogs    ChatbotLog[]
+  notifications Notification[]
+  workflows   Workflow[]
+  leaveRequests LeaveRequest[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String     @default("EMPLOYEE")
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employee      Employee?
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// enum Role {
+//   ADMIN
+//   HR_MANAGER
+//   EMPLOYEE
+// }
+
+model Employee {
+  id            String    @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String    @unique
+  phone         String?
+  avatarUrl     String?
+  status        String @default("ACTIVE")
+  hireDate      DateTime  @default(now())
+  
+  userId        String?   @unique
+  user          User?     @relation(fields: [userId], references: [id])
+  
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  
+  positionId    String?
+  position      Position?   @relation(fields: [positionId], references: [id])
+
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+  attendance    AttendanceLog[]
+  timesheets    Timesheet[]
+  reviews       PerformanceReview[] @relation("EmployeeReviews")
+  givenReviews  PerformanceReview[] @relation("Reviewer")
+  goals         Goal[]
+  enrollments   Enrollment[]
+
+  @@map("employees")
+}
+
+// enum EmployeeStatus {
+//   ACTIVE
+//   ONBOARDING
+//   INACTIVE
+//   TERMINATED
+// }
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Position {
+  id        String   @id @default(uuid())
+  title     String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  
+  employees Employee[]
+
+  @@map("positions")
+}
+
+model RecruitmentJob {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String @default("OPEN")
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  applications JobApplication[]
+
+  @@map("recruitment_jobs")
+}
+
+// enum JobStatus {
+//   OPEN
+//   CLOSED
+//   DRAFT
+// }
+
+model JobApplication {
+  id            String   @id @default(uuid())
+  candidateName String
+  candidateEmail String
+  resumeUrl     String?
+  status        String @default("PENDING")
+  jobId         String
+  job           RecruitmentJob @relation(fields: [jobId], references: [id])
+  
+  // New AI Talent Intelligence fields
+  aiScore       Int?      @default(0)
+  aiAnalysis    String?
+  skillsMatch   String?   // comma separated skills
+  interviewScore Int?
+  
+  createdAt     DateTime @default(now())
+
+  @@map("job_applications")
+}
+
+// enum ApplicationStatus {
+//   PENDING
+//   SCREENING
+//   INTERVIEW
+//   OFFER
+//   REJECTED
+//   HIRED
+// }
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  status      String @default("ACTIVE")
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  tasks       WorkflowTask[]
+  executions  WorkflowExecution[]
+
+  @@map("workflows")
+}
+
+// enum WorkflowType {
+//   ONBOARDING
+//   OFFBOARDING
+//   PROMOTION
+// }
+
+// enum WorkflowStatus {
+//   ACTIVE
+//   INACTIVE
+// }
+
+model WorkflowTask {
+  id          String   @id @default(uuid())
+  title       String
+  action      String   // internal action code e.g. "CREATE_ACCOUNT"
+  order       Int
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+
+  @@map("workflow_tasks")
+}
+
+model WorkflowExecution {
+  id          String   @id @default(uuid())
+  entityId    String   // ID of employee or candidate
+  status      String @default("IN_PROGRESS")
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+  companyId   String
+  
+  logs        WorkflowLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("workflow_executions")
+}
+
+// enum ExecutionStatus {
+//   IN_PROGRESS
+//   COMPLETED
+//   FAILED
+// }
+
+model WorkflowLog {
+  id          String   @id @default(uuid())
+  message     String
+  status      String   // SUCCESS, FAILED
+  executionId String
+  execution   WorkflowExecution @relation(fields: [executionId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("workflow_logs")
+}
+
+model LeaveType {
+  id          String   @id @default(uuid())
+  name        String
+  daysPerYear Int
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  requests    LeaveRequest[]
+  balances    LeaveBalance[]
+
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id          String   @id @default(uuid())
+  balance     Int
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  typeId      String
+  type        LeaveType @relation(fields: [typeId], references: [id])
+
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id          String   @id @default(uuid())
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  status      String @default("PENDING")
+  
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  
+  typeId      String
+  type        LeaveType @relation(fields: [typeId], references: [id])
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("leave_requests")
+}
+
+// enum RequestStatus {
+//   PENDING
+//   APPROVED
+//   REJECTED
+// }
+
+model AttendanceLog {
+  id          String   @id @default(uuid())
+  clockIn     DateTime @default(now())
+  clockOut    DateTime?
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("attendance_logs")
+}
+
+model Timesheet {
+  id          String   @id @default(uuid())
+  date        DateTime
+  hours       Float
+  task        String?
+  status      String @default("PENDING")
+  
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("timesheets")
+}
+
+model PerformanceReview {
+  id          String   @id @default(uuid())
+  cycleName   String
+  rating      Int?
+  comments    String?
+  status      String @default("DRAFT")
+  
+  employeeId  String
+  employee    Employee @relation("EmployeeReviews", fields: [employeeId], references: [id])
+  
+  reviewerId  String
+  reviewer    Employee @relation("Reviewer", fields: [reviewerId], references: [id])
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("performance_reviews")
+}
+
+// enum ReviewStatus {
+//   DRAFT
+//   SUBMITTED
+//   COMPLETED
+// }
+
+model Goal {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  progress    Int      @default(0)
+  
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("performance_goals")
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  enrollments Enrollment[]
+
+  @@map("learning_courses")
+}
+
+model Enrollment {
+  id          String   @id @default(uuid())
+  progress    Int      @default(0)
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("learning_enrollments")
+}
+
+model HRDocument {
+  id          String   @id @default(uuid())
+  title       String
+  content     String?
+  type        String  @default("POLICY")
+  fileUrl     String?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("hr_documents")
+}
+
+// enum DocType {
+//   POLICY
+//   OFFER_LETTER
+//   CONTRACT
+//   HANDBOOK
+// }
+
+model ChatbotLog {
+  id          String   @id @default(uuid())
+  message     String?
+  senderId    String?
+  role        String?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("chatbot_logs")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}
